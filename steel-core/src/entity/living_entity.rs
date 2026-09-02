@@ -161,8 +161,8 @@ pub trait LivingEntity: Entity {
         self.drain_dirty_living_equipment()
     }
 
-    /// Saves persistent living entity state such as equipment.
-    fn save_living_entity(&self, nbt: &mut NbtCompound) {
+    /// Saves equipment slots to NBT.
+    fn save_equipment(&self, nbt: &mut NbtCompound) {
         let mut equipment = NbtCompound::new();
         for slot in EquipmentSlot::ALL {
             self.with_equipment_slot(slot, &mut |item| {
@@ -176,8 +176,8 @@ pub trait LivingEntity: Entity {
         }
     }
 
-    /// Loads persistent living entity state such as equipment.
-    fn load_living_entity(&self, nbt: BorrowedNbtCompoundView<'_, '_>) {
+    /// Loads equipment slots from NBT.
+    fn load_equipment(&self, nbt: BorrowedNbtCompoundView<'_, '_>) {
         if let Some(equipment_tag) = nbt.compound("equipment") {
             let mut equipment = self.living_base().equipment().lock();
             for slot in EquipmentSlot::ALL {
@@ -258,7 +258,7 @@ pub trait LivingEntity: Entity {
             );
         }
 
-        self.save_living_entity(nbt);
+        self.save_equipment(nbt);
     }
 
     /// Gets the current health of the entity.
