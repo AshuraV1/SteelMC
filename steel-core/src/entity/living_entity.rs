@@ -258,7 +258,9 @@ pub trait LivingEntity: Entity {
             );
         }
 
-        self.save_equipment(nbt);
+        if self.as_mob().is_none() {
+            self.save_equipment(nbt);
+        }
     }
 
     /// Gets the current health of the entity.
