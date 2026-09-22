@@ -125,6 +125,11 @@ pub trait Entity: EntityEventSource + ErasedType + Send + Sync + 'static {
         self.base().id()
     }
 
+    /// Gets the generation counter of this runtime construction of the entity.
+    fn generation(&self) -> EntityGeneration {
+        self.base().generation()
+    }
+
     /// Gets the UUID of the entity (persistent identifier).
     fn uuid(&self) -> Uuid {
         self.base().uuid()
@@ -1594,7 +1599,8 @@ pub trait Entity: EntityEventSource + ErasedType + Send + Sync + 'static {
 
     /// Returns true when vanilla `ServerEntity` should force velocity sync for fall flying.
     fn forces_fall_flying_velocity_sync(&self) -> bool {
-        false
+        self.as_living_entity()
+            .is_some_and(LivingEntity::is_fall_flying)
     }
 
     /// Returns true when movement is driven by serverbound movement packets.
@@ -3304,7 +3310,7 @@ pub trait Entity: EntityEventSource + ErasedType + Send + Sync + 'static {
 
         let mut movement = delta;
         if mover_type == MoverType::Piston {
-            let game_time = world.level_data.read().game_time();
+            let game_time = world.game_time();
             movement = self.base().limit_piston_movement(movement, game_time);
             if movement == DVec3::ZERO {
                 return None;
