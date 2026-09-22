@@ -248,11 +248,7 @@ impl MushroomCowEntity {
         }
         *last_uuid = Some(lightning_uuid);
         self.set_variant(self.variant().opposite());
-        self.play_sound(
-            &sound_events::ENTITY_MOOSHROOM_CONVERT,
-            2.0,
-            1.0,
-        );
+        self.play_sound(&sound_events::ENTITY_MOOSHROOM_CONVERT, 2.0, 1.0);
     }
 
     /// Returns whether the mooshroom can currently be sheared.
@@ -313,9 +309,7 @@ impl MushroomCowEntity {
 
     fn spawn_shearing_drop(&self, drop: &ItemStack) {
         for _ in 0..drop.count() {
-            let Some(item_entity) =
-                self.spawn_at_location(drop.copy_with_count(1), 1.0)
-            else {
+            let Some(item_entity) = self.spawn_at_location(drop.copy_with_count(1), 1.0) else {
                 continue;
             };
             let jitter = DVec3::new(
@@ -386,11 +380,7 @@ impl MushroomCowEntity {
             InteractionResult::SuccessServer
         } else {
             *self.stew_effects.lock() = Some(effects);
-            self.play_sound(
-                &sound_events::ENTITY_MOOSHROOM_EAT,
-                2.0,
-                1.0,
-            );
+            self.play_sound(&sound_events::ENTITY_MOOSHROOM_EAT, 2.0, 1.0);
             Mob::use_player_item(self, player, hand);
             InteractionResult::SuccessServer
         }
@@ -436,11 +426,7 @@ impl MushroomCowEntity {
             return false;
         }
 
-        player.play_sound(
-            &sound_events::ENTITY_COW_MILK,
-            1.0,
-            1.0,
-        );
+        player.play_sound(&sound_events::ENTITY_COW_MILK, 1.0, 1.0);
 
         let overflow = {
             let mut inventory = player.inventory.lock();
@@ -523,11 +509,7 @@ impl Entity for MushroomCowEntity {
     }
 
     fn play_step_sound(&self, _pos: BlockPos, _block_state: BlockStateId) {
-        self.play_sound(
-            &sound_events::ENTITY_COW_STEP,
-            0.15,
-            1.0,
-        );
+        self.play_sound(&sound_events::ENTITY_COW_STEP, 0.15, 1.0);
     }
 
     fn save_additional(&self, nbt: &mut NbtCompound) {
