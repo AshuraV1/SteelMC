@@ -69,8 +69,8 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(clear::registration())?;
     builder.register(operator::deop_registration())?;
     builder.register(damage::registration())?;
-    builder.register(difficulty::registration())?;
     builder.register(defaultgamemode::registration())?;
+    builder.register(difficulty::registration())?;
     builder.register(domain::registration())?;
     builder.register(enchant::registration())?;
     builder.register(execute::registration())?;
@@ -149,8 +149,8 @@ mod tests {
                 "clear",
                 "deop",
                 "damage",
-                "difficulty",
                 "defaultgamemode",
+                "difficulty",
                 "domain",
                 "enchant",
                 "execute",

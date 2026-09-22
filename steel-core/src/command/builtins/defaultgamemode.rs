@@ -1,6 +1,6 @@
 //! Vanilla `/defaultgamemode` command setting the default game mode for a domain's worlds.
 
-use steel_utils::{Identifier, translations, types::GameType};
+use steel_utils::{Identifier, translations};
 use text_components::TextComponent;
 
 use super::super::{
@@ -14,15 +14,12 @@ use super::super::{
 use super::gamemode::game_mode_translation;
 
 pub(super) fn registration() -> CommandRegistration<CommandSource> {
-    CommandRegistration::new(Identifier::vanilla_static("defaultgamemode"), |_| {
-        command()
-    })
+    CommandRegistration::new(Identifier::vanilla_static("defaultgamemode"), |_| command())
 }
 
 fn command() -> CommandNodeBuilder<CommandSource, SteelCommandRuntime> {
-    literal("defaultgamemode").then(
-        argument("gamemode", SteelArgumentType::game_mode()).executes(set_default_game_mode),
-    )
+    literal("defaultgamemode")
+        .then(argument("gamemode", SteelArgumentType::game_mode()).executes(set_default_game_mode))
 }
 
 fn set_default_game_mode(
