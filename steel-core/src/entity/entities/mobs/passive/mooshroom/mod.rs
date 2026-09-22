@@ -69,29 +69,6 @@ const MOOSHROOM_BABY_DIMENSIONS: EntityDimensions = EntityDimensions::new_with_a
 const DEFAULT_STEP_HEIGHT: f32 = 0.6;
 /// Vanilla 1 in 1024 chance of mutation when breeding identical variants.
 const MUTATE_CHANCE: u32 = 1024;
-const MOOSHROOM_WALK_TARGET_VALUE: f32 = 10.0;
-const SHEARING_DROP_HEIGHT_OFFSET: f64 = 1.0;
-const SHEARING_DROP_HORIZONTAL_JITTER: f64 = 0.1;
-const SHEARING_DROP_VERTICAL_JITTER: f64 = 0.05;
-const MOOSHROOM_CONVERSION_PARTICLE_COUNT: i32 = 1;
-const MOOSHROOM_CONVERSION_PARTICLE_HEIGHT_OFFSET: f64 = 0.5;
-const MOOSHROOM_CONVERSION_PARTICLE_SPREAD: DVec3 = DVec3::ZERO;
-const MOOSHROOM_CONVERSION_PARTICLE_SPEED: f64 = 0.0;
-const MOOSHROOM_RED_VARIANT_ID: i32 = 0;
-const MOOSHROOM_BROWN_VARIANT_ID: i32 = 1;
-const MOOSHROOM_PANIC_SPEED: f64 = 2.0;
-const MOOSHROOM_BREED_SPEED: f64 = 1.0;
-const MOOSHROOM_TEMPT_SPEED: f64 = 1.25;
-const MOOSHROOM_FOLLOW_PARENT_SPEED: f64 = 1.25;
-const MOOSHROOM_STROLL_SPEED: f64 = 1.0;
-const MOOSHROOM_LOOK_AT_PLAYER_RANGE: f64 = 6.0;
-const MOOSHROOM_CONVERT_SOUND_VOLUME: f32 = 2.0;
-const MOOSHROOM_EAT_SOUND_VOLUME: f32 = 2.0;
-const DEFAULT_SOUND_VOLUME: f32 = 1.0;
-const DEFAULT_SOUND_PITCH: f32 = 1.0;
-const COW_STEP_SOUND_VOLUME: f32 = 0.15;
-const MOOSHROOM_SOUND_VOLUME: f32 = 0.4;
-const MIN_HEALTH: f32 = 0.0;
 
 /// Vanilla Mooshroom variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -127,8 +104,8 @@ impl MushroomCowVariant {
     #[must_use]
     pub const fn id(self) -> i32 {
         match self {
-            Self::Red => MOOSHROOM_RED_VARIANT_ID,
-            Self::Brown => MOOSHROOM_BROWN_VARIANT_ID,
+            Self::Red => 0,
+            Self::Brown => 1,
         }
     }
 
@@ -136,7 +113,7 @@ impl MushroomCowVariant {
     #[must_use]
     pub const fn from_id(id: i32) -> Self {
         match id {
-            MOOSHROOM_BROWN_VARIANT_ID => Self::Brown,
+            1 => Self::Brown,
             _ => Self::Red,
         }
     }
@@ -201,12 +178,12 @@ impl MushroomCowEntity {
         {
             let mut goal_selector = mob_base.goal_selector().lock();
             goal_selector.add_goal(0, FloatGoal::new(&mob_base));
-            goal_selector.add_goal(1, PanicGoal::new(MOOSHROOM_PANIC_SPEED));
-            goal_selector.add_goal(2, BreedGoal::new(MOOSHROOM_BREED_SPEED));
+            goal_selector.add_goal(1, PanicGoal::new(2.0));
+            goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(
                 3,
                 TemptGoal::new(
-                    MOOSHROOM_TEMPT_SPEED,
+                    1.25,
                     |item_stack| {
                         REGISTRY
                             .items
@@ -215,9 +192,9 @@ impl MushroomCowEntity {
                     false,
                 ),
             );
-            goal_selector.add_goal(4, FollowParentGoal::new(MOOSHROOM_FOLLOW_PARENT_SPEED));
-            goal_selector.add_goal(5, WaterAvoidingRandomStrollGoal::new(MOOSHROOM_STROLL_SPEED));
-            goal_selector.add_goal(6, LookAtPlayerGoal::new(MOOSHROOM_LOOK_AT_PLAYER_RANGE));
+            goal_selector.add_goal(4, FollowParentGoal::new(1.25));
+            goal_selector.add_goal(5, WaterAvoidingRandomStrollGoal::new(1.0));
+            goal_selector.add_goal(6, LookAtPlayerGoal::new(6.0));
             goal_selector.add_goal(7, RandomLookAroundGoal::new());
         }
 
@@ -273,8 +250,8 @@ impl MushroomCowEntity {
         self.set_variant(self.variant().opposite());
         self.play_sound(
             &sound_events::ENTITY_MOOSHROOM_CONVERT,
-            MOOSHROOM_CONVERT_SOUND_VOLUME,
-            DEFAULT_SOUND_PITCH,
+            2.0,
+            1.0,
         );
     }
 
@@ -290,8 +267,8 @@ impl MushroomCowEntity {
             &sound_events::ENTITY_MOOSHROOM_SHEAR,
             SoundSource::Players,
             self.position(),
-            DEFAULT_SOUND_VOLUME,
-            DEFAULT_SOUND_PITCH,
+            1.0,
+            1.0,
             None,
         );
 
@@ -327,24 +304,24 @@ impl MushroomCowEntity {
         let _ = world.try_add_entity(cow);
         world.send_particles(
             ParticleData::simple(&vanilla_particle_types::EXPLOSION),
-            self.position() + DVec3::Y * MOOSHROOM_CONVERSION_PARTICLE_HEIGHT_OFFSET,
-            MOOSHROOM_CONVERSION_PARTICLE_COUNT,
-            MOOSHROOM_CONVERSION_PARTICLE_SPREAD,
-            MOOSHROOM_CONVERSION_PARTICLE_SPEED,
+            self.position() + DVec3::Y * 0.5,
+            1,
+            DVec3::ZERO,
+            0.0,
         );
     }
 
     fn spawn_shearing_drop(&self, drop: &ItemStack) {
         for _ in 0..drop.count() {
             let Some(item_entity) =
-                self.spawn_at_location(drop.copy_with_count(1), SHEARING_DROP_HEIGHT_OFFSET)
+                self.spawn_at_location(drop.copy_with_count(1), 1.0)
             else {
                 continue;
             };
             let jitter = DVec3::new(
-                (rand::random::<f64>() - rand::random::<f64>()) * SHEARING_DROP_HORIZONTAL_JITTER,
-                rand::random::<f64>() * SHEARING_DROP_VERTICAL_JITTER,
-                (rand::random::<f64>() - rand::random::<f64>()) * SHEARING_DROP_HORIZONTAL_JITTER,
+                (rand::random::<f64>() - rand::random::<f64>()) * 0.1,
+                rand::random::<f64>() * 0.05,
+                (rand::random::<f64>() - rand::random::<f64>()) * 0.1,
             );
             item_entity.set_velocity(item_entity.velocity() + jitter);
         }
@@ -375,7 +352,7 @@ impl MushroomCowEntity {
             )
         };
 
-        self.play_sound(sound, DEFAULT_SOUND_VOLUME, DEFAULT_SOUND_PITCH);
+        self.play_sound(sound, 1.0, 1.0);
 
         let overflow = {
             let mut inventory = player.inventory.lock();
@@ -411,8 +388,8 @@ impl MushroomCowEntity {
             *self.stew_effects.lock() = Some(effects);
             self.play_sound(
                 &sound_events::ENTITY_MOOSHROOM_EAT,
-                MOOSHROOM_EAT_SOUND_VOLUME,
-                DEFAULT_SOUND_PITCH,
+                2.0,
+                1.0,
             );
             Mob::use_player_item(self, player, hand);
             InteractionResult::SuccessServer
@@ -461,8 +438,8 @@ impl MushroomCowEntity {
 
         player.play_sound(
             &sound_events::ENTITY_COW_MILK,
-            DEFAULT_SOUND_VOLUME,
-            DEFAULT_SOUND_PITCH,
+            1.0,
+            1.0,
         );
 
         let overflow = {
@@ -548,8 +525,8 @@ impl Entity for MushroomCowEntity {
     fn play_step_sound(&self, _pos: BlockPos, _block_state: BlockStateId) {
         self.play_sound(
             &sound_events::ENTITY_COW_STEP,
-            COW_STEP_SOUND_VOLUME,
-            DEFAULT_SOUND_PITCH,
+            0.15,
+            1.0,
         );
     }
 
@@ -591,7 +568,7 @@ impl LivingEntity for MushroomCowEntity {
 
     fn set_health(&self, health: f32) {
         let max_health = self.get_max_health();
-        let clamped = health.clamp(MIN_HEALTH, max_health);
+        let clamped = health.clamp(0.0, max_health);
         self.entity_data
             .lock()
             .living_entity_mut()
@@ -600,7 +577,7 @@ impl LivingEntity for MushroomCowEntity {
     }
 
     fn sound_volume(&self) -> f32 {
-        MOOSHROOM_SOUND_VOLUME
+        0.4
     }
 
     fn hurt_sound(&self, _source: &DamageSource) -> Option<SoundEventRef> {
@@ -688,7 +665,7 @@ impl Animal for MushroomCowEntity {
         };
 
         if world.get_block_state(pos.below()).get_block() == &vanilla_blocks::MYCELIUM {
-            MOOSHROOM_WALK_TARGET_VALUE
+            10.0
         } else {
             world.pathfinding_cost_from_light_levels(pos)
         }
