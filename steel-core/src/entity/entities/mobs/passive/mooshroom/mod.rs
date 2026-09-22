@@ -79,14 +79,6 @@ const MOOSHROOM_CONVERSION_PARTICLE_SPREAD: DVec3 = DVec3::ZERO;
 const MOOSHROOM_CONVERSION_PARTICLE_SPEED: f64 = 0.0;
 const MOOSHROOM_RED_VARIANT_ID: i32 = 0;
 const MOOSHROOM_BROWN_VARIANT_ID: i32 = 1;
-const MOOSHROOM_FLOAT_GOAL_PRIORITY: i32 = 0;
-const MOOSHROOM_PANIC_GOAL_PRIORITY: i32 = 1;
-const MOOSHROOM_BREED_GOAL_PRIORITY: i32 = 2;
-const MOOSHROOM_TEMPT_GOAL_PRIORITY: i32 = 3;
-const MOOSHROOM_FOLLOW_PARENT_GOAL_PRIORITY: i32 = 4;
-const MOOSHROOM_STROLL_GOAL_PRIORITY: i32 = 5;
-const MOOSHROOM_LOOK_AT_PLAYER_GOAL_PRIORITY: i32 = 6;
-const MOOSHROOM_RANDOM_LOOK_GOAL_PRIORITY: i32 = 7;
 const MOOSHROOM_PANIC_SPEED: f64 = 2.0;
 const MOOSHROOM_BREED_SPEED: f64 = 1.0;
 const MOOSHROOM_TEMPT_SPEED: f64 = 1.25;
@@ -208,17 +200,11 @@ impl MushroomCowEntity {
 
         {
             let mut goal_selector = mob_base.goal_selector().lock();
-            goal_selector.add_goal(MOOSHROOM_FLOAT_GOAL_PRIORITY, FloatGoal::new(&mob_base));
+            goal_selector.add_goal(0, FloatGoal::new(&mob_base));
+            goal_selector.add_goal(1, PanicGoal::new(MOOSHROOM_PANIC_SPEED));
+            goal_selector.add_goal(2, BreedGoal::new(MOOSHROOM_BREED_SPEED));
             goal_selector.add_goal(
-                MOOSHROOM_PANIC_GOAL_PRIORITY,
-                PanicGoal::new(MOOSHROOM_PANIC_SPEED),
-            );
-            goal_selector.add_goal(
-                MOOSHROOM_BREED_GOAL_PRIORITY,
-                BreedGoal::new(MOOSHROOM_BREED_SPEED),
-            );
-            goal_selector.add_goal(
-                MOOSHROOM_TEMPT_GOAL_PRIORITY,
+                3,
                 TemptGoal::new(
                     MOOSHROOM_TEMPT_SPEED,
                     |item_stack| {
@@ -229,22 +215,10 @@ impl MushroomCowEntity {
                     false,
                 ),
             );
-            goal_selector.add_goal(
-                MOOSHROOM_FOLLOW_PARENT_GOAL_PRIORITY,
-                FollowParentGoal::new(MOOSHROOM_FOLLOW_PARENT_SPEED),
-            );
-            goal_selector.add_goal(
-                MOOSHROOM_STROLL_GOAL_PRIORITY,
-                WaterAvoidingRandomStrollGoal::new(MOOSHROOM_STROLL_SPEED),
-            );
-            goal_selector.add_goal(
-                MOOSHROOM_LOOK_AT_PLAYER_GOAL_PRIORITY,
-                LookAtPlayerGoal::new(MOOSHROOM_LOOK_AT_PLAYER_RANGE),
-            );
-            goal_selector.add_goal(
-                MOOSHROOM_RANDOM_LOOK_GOAL_PRIORITY,
-                RandomLookAroundGoal::new(),
-            );
+            goal_selector.add_goal(4, FollowParentGoal::new(MOOSHROOM_FOLLOW_PARENT_SPEED));
+            goal_selector.add_goal(5, WaterAvoidingRandomStrollGoal::new(MOOSHROOM_STROLL_SPEED));
+            goal_selector.add_goal(6, LookAtPlayerGoal::new(MOOSHROOM_LOOK_AT_PLAYER_RANGE));
+            goal_selector.add_goal(7, RandomLookAroundGoal::new());
         }
 
         Self {
