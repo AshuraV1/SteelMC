@@ -674,6 +674,29 @@ impl AgeableMob for MushroomCowEntity {
     fn age_boundary_changed(&self, _baby: bool) {
         self.refresh_dimensions();
     }
+
+    fn initialize_breed_offspring(&self, partner: &dyn AgeableMob, offspring: &dyn AgeableMob) {
+        let mate_variant = partner
+            .downcast_ref::<MushroomCowEntity>()
+            .map_or(self.variant(), MushroomCowEntity::variant);
+
+        let self_variant = self.variant();
+        let baby_variant = if self_variant == mate_variant {
+            if rand::random::<u32>().is_multiple_of(MUTATE_CHANCE) {
+                self_variant.opposite()
+            } else {
+                self_variant
+            }
+        } else if rand::random::<bool>() {
+            self_variant
+        } else {
+            mate_variant
+        };
+
+        if let Some(baby) = offspring.downcast_ref::<MushroomCowEntity>() {
+            baby.set_variant(baby_variant);
+        }
+    }
 }
 
 impl Animal for MushroomCowEntity {
@@ -710,29 +733,6 @@ impl Animal for MushroomCowEntity {
             .get_block()
             .has_tag(&BlockTag::MOOSHROOMS_SPAWNABLE_ON)
             && Self::is_bright_enough_to_spawn(level, pos)
-    }
-
-    fn initialize_breed_offspring(&self, partner: &dyn Animal, offspring: &dyn Animal) {
-        let mate_variant = partner
-            .downcast_ref::<MushroomCowEntity>()
-            .map_or(self.variant(), MushroomCowEntity::variant);
-
-        let self_variant = self.variant();
-        let baby_variant = if self_variant == mate_variant {
-            if rand::random::<u32>().is_multiple_of(MUTATE_CHANCE) {
-                self_variant.opposite()
-            } else {
-                self_variant
-            }
-        } else if rand::random::<bool>() {
-            self_variant
-        } else {
-            mate_variant
-        };
-
-        if let Some(baby) = offspring.downcast_ref::<MushroomCowEntity>() {
-            baby.set_variant(baby_variant);
-        }
     }
 }
 
