@@ -158,7 +158,7 @@ impl BlockBehavior for CandleBlock {
                 pos,
                 1.0,
                 1.0,
-                Some(player.id()),
+                None,
             );
             world.game_event(
                 &vanilla_game_events::BLOCK_CHANGE,
