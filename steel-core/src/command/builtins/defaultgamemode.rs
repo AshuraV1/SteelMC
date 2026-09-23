@@ -18,15 +18,35 @@ pub(super) fn registration() -> CommandRegistration<CommandSource> {
 }
 
 fn command() -> CommandNodeBuilder<CommandSource, SteelCommandRuntime> {
-    literal("defaultgamemode")
-        .then(argument("gamemode", SteelArgumentType::game_mode()).executes(set_default_game_mode))
+    literal("defaultgamemode").then(
+        argument("gamemode", SteelArgumentType::game_mode())
+            .executes(set_default_game_mode)
+            .then(
+                argument("domain", SteelArgumentType::domain())
+                    .executes(set_default_game_mode_domain),
+            ),
+    )
 }
 
 fn set_default_game_mode(
     context: &SteelCommandContext<CommandSource>,
 ) -> Result<i32, CommandSyntaxError> {
+    let domain = context.source().world().domain().to_owned();
+    apply_default_game_mode(context, &domain)
+}
+
+fn set_default_game_mode_domain(
+    context: &SteelCommandContext<CommandSource>,
+) -> Result<i32, CommandSyntaxError> {
+    let domain = context.domain("domain")?;
+    apply_default_game_mode(context, domain)
+}
+
+fn apply_default_game_mode(
+    context: &SteelCommandContext<CommandSource>,
+    domain: &str,
+) -> Result<i32, CommandSyntaxError> {
     let game_mode = context.game_mode("gamemode")?;
-    let domain = context.source().world().domain();
     let worlds = context.source().server().worlds.worlds_in_domain(domain);
 
     for world in worlds {
@@ -48,7 +68,7 @@ mod tests {
     use crate::command::execution::SteelArgumentType;
 
     #[test]
-    fn defaultgamemode_graph_matches_vanilla_shape() {
+    fn defaultgamemode_graph_matches_shape() {
         init_vanilla_registry();
         let Ok(dispatcher) = create_dispatcher() else {
             panic!("built-in commands should register");
@@ -74,6 +94,19 @@ mod tests {
             Some(node)
                 if node.is_executable()
                     && node.argument_type() == Some(&SteelArgumentType::game_mode())
+        ));
+        let Some(domain) = dispatcher
+            .children(game_mode)
+            .and_then(|children| children.first())
+            .copied()
+        else {
+            panic!("domain argument should exist");
+        };
+        assert!(matches!(
+            dispatcher.node(domain),
+            Some(node)
+                if node.is_executable()
+                    && node.argument_type() == Some(&SteelArgumentType::domain())
         ));
     }
 }
