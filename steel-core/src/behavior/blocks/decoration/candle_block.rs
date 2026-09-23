@@ -163,7 +163,7 @@ impl BlockBehavior for CandleBlock {
             world.game_event(
                 &vanilla_game_events::BLOCK_CHANGE,
                 pos,
-                &GameEventContext::new(Some(player), Some(new_state)),
+                &GameEventContext::new(Some(player), None),
             );
             return InteractionResult::Success;
         }
