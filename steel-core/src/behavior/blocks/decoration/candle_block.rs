@@ -27,7 +27,7 @@ use crate::{
             schedule_water_tick_if_waterlogged,
         },
     },
-    entity::projectile::Projectile,
+    entity::{Entity, projectile::Projectile},
     player,
     world::{
         ClipHitResult, LevelAccessor, LevelReader, ScheduledTickAccess, World,
@@ -144,18 +144,21 @@ impl BlockBehavior for CandleBlock {
         state: steel_utils::BlockStateId,
         world: &Arc<World>,
         pos: BlockPos,
-        _player: &player::Player,
+        player: &player::Player,
         _hand: types::InteractionHand,
         _hit_result: &BlockHitResult,
         inv: &mut InventoryAccess,
     ) -> InteractionResult {
         let item_is_empty = inv.with_item(|item_stack| item_stack.is_empty());
-        if item_is_empty {
-            if !state.get_value(LIT_PROPERTY) {
-                return InteractionResult::Pass;
-            }
+        if item_is_empty && player.abilities.lock().may_build && state.get_value(LIT_PROPERTY) {
             let new_state = state.set_value(LIT_PROPERTY, false);
             world.set_block(pos, new_state, UpdateFlags::UPDATE_ALL_IMMEDIATE);
+            world.play_block_sound(&sound_events::BLOCK_CANDLE_EXTINGUISH, pos, 1.0, 1.0, Some(player.id()));
+            world.game_event(
+                &vanilla_game_events::BLOCK_CHANGE,
+                pos,
+                &GameEventContext::new(Some(player), Some(new_state)),
+            );
             return InteractionResult::Success;
         }
 
