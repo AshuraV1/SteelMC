@@ -45,7 +45,7 @@ impl World {
     }
 
     /// Sets the default game mode for this world.
-    pub(crate) fn set_default_gamemode(&self, default_gamemode: GameType) {
+    pub fn set_default_gamemode(&self, default_gamemode: GameType) {
         self.default_gamemode
             .store(default_gamemode as u8, Ordering::Release);
     }
