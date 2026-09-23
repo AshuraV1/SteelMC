@@ -153,7 +153,13 @@ impl BlockBehavior for CandleBlock {
         if item_is_empty && player.abilities.lock().may_build && state.get_value(LIT_PROPERTY) {
             let new_state = state.set_value(LIT_PROPERTY, false);
             world.set_block(pos, new_state, UpdateFlags::UPDATE_ALL_IMMEDIATE);
-            world.play_block_sound(&sound_events::BLOCK_CANDLE_EXTINGUISH, pos, 1.0, 1.0, Some(player.id()));
+            world.play_block_sound(
+                &sound_events::BLOCK_CANDLE_EXTINGUISH,
+                pos,
+                1.0,
+                1.0,
+                Some(player.id()),
+            );
             world.game_event(
                 &vanilla_game_events::BLOCK_CHANGE,
                 pos,
@@ -202,10 +208,11 @@ mod tests {
     use super::*;
     use glam::DVec3;
     use steel_registry::{init_vanilla_registry, item_stack::ItemStack, vanilla_items};
+    use steel_utils::ChunkPos;
 
     use crate::{
         behavior::{PlacementOrientation, PlacementSource, init_behaviors},
-        test_support::{TestLevel, test_world},
+        test_support::{TestLevel, fresh_test_world, insert_ready_full_chunk, test_world},
     };
 
     fn supporting_level() -> TestLevel {
@@ -346,7 +353,13 @@ mod tests {
         let state_4 = state_1.set_value(CANDLES_PROPERTY, 4);
 
         let mut candle_item = ItemStack::new(&vanilla_items::CANDLE);
-        let ctx = place_context(world, BlockPos::ZERO, Direction::Up, &mut candle_item, false);
+        let ctx = place_context(
+            world,
+            BlockPos::ZERO,
+            Direction::Up,
+            &mut candle_item,
+            false,
+        );
         assert!(candle.can_be_replaced(state_1, &ctx));
 
         let mut candle_item_sneak = ItemStack::new(&vanilla_items::CANDLE);
@@ -388,28 +401,21 @@ mod tests {
     fn candle_placement_state_increments_and_preserves_properties() {
         init_vanilla_registry();
         init_behaviors();
-        let world = test_world();
+        let world = fresh_test_world("candle_placement_increments");
         let candle = CandleBlock::new(&vanilla_blocks::CANDLE);
+
+        let pos = BlockPos::new(0, 10, 0);
+        insert_ready_full_chunk(&world, ChunkPos::from_block_pos(pos));
 
         let existing = vanilla_blocks::CANDLE
             .default_state()
             .set_value(CANDLES_PROPERTY, 2)
             .set_value(LIT_PROPERTY, true)
             .set_value(WATERLOGGED, false);
-        world.set_block(
-            BlockPos::new(0, 10, 0),
-            existing,
-            UpdateFlags::UPDATE_ALL_IMMEDIATE,
-        );
+        world.set_block(pos, existing, UpdateFlags::UPDATE_ALL_IMMEDIATE);
 
         let mut item = ItemStack::new(&vanilla_items::CANDLE);
-        let ctx = place_context(
-            world,
-            BlockPos::new(0, 10, 0),
-            Direction::Up,
-            &mut item,
-            false,
-        );
+        let ctx = place_context(&world, pos, Direction::Up, &mut item, false);
         let placed_state = candle
             .get_state_for_placement(&ctx)
             .expect("placement state should be present");
@@ -422,9 +428,11 @@ mod tests {
     fn candle_can_place_when_clicking_block_below() {
         init_vanilla_registry();
         init_behaviors();
-        let world = test_world();
+        let world = fresh_test_world("candle_click_block_below");
         let stone_pos = BlockPos::new(0, 10, 0);
         let candle_pos = stone_pos.above();
+
+        insert_ready_full_chunk(&world, ChunkPos::from_block_pos(stone_pos));
 
         world.set_block(
             stone_pos,
@@ -438,7 +446,7 @@ mod tests {
         );
 
         let mut candle_item = ItemStack::new(&vanilla_items::CANDLE);
-        let ctx = place_context(world, stone_pos, Direction::Up, &mut candle_item, false);
+        let ctx = place_context(&world, stone_pos, Direction::Up, &mut candle_item, false);
 
         assert_eq!(ctx.hit_pos(), stone_pos);
         assert_eq!(ctx.place_pos(), candle_pos);
