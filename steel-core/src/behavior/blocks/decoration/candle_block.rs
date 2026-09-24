@@ -27,7 +27,7 @@ use crate::{
             schedule_water_tick_if_waterlogged,
         },
     },
-    entity::{Entity, projectile::Projectile},
+    entity::projectile::Projectile,
     player,
     world::{
         ClipHitResult, LevelAccessor, LevelReader, ScheduledTickAccess, World,
@@ -153,13 +153,7 @@ impl BlockBehavior for CandleBlock {
         if item_is_empty && player.abilities.lock().may_build && state.get_value(LIT_PROPERTY) {
             let new_state = state.set_value(LIT_PROPERTY, false);
             world.set_block(pos, new_state, UpdateFlags::UPDATE_ALL_IMMEDIATE);
-            world.play_block_sound(
-                &sound_events::BLOCK_CANDLE_EXTINGUISH,
-                pos,
-                1.0,
-                1.0,
-                None,
-            );
+            world.play_block_sound(&sound_events::BLOCK_CANDLE_EXTINGUISH, pos, 1.0, 1.0, None);
             world.game_event(
                 &vanilla_game_events::BLOCK_CHANGE,
                 pos,
