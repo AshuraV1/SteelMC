@@ -268,6 +268,7 @@ impl MushroomCowEntity {
             None,
         );
 
+        // FIXME: use the vanilla world loot rng once the foundations are there
         let mut rng = rand::rng();
         for drop in shearing_loot_items_with_rng(
             self,
