@@ -180,27 +180,28 @@ fn mooshroom_shearing_converts_to_cow_and_drops_mushrooms() {
         .lock()
         .set_selected_item(ItemStack::new(&vanilla_items::SHEARS));
 
-    let mooshroom = Arc::new(MushroomCowEntity::new(
+    let mooshroom = MushroomCowEntity::new(
         &vanilla_entities::MOOSHROOM,
         next_entity_id(),
         DVec3::new(10.0, 64.0, 10.0),
         Arc::downgrade(world),
-    ));
-    insert_ready_full_chunk(world, ChunkPos::from_block_pos(mooshroom.block_position()));
+    );
+    let shared: SharedEntity = Arc::new(mooshroom);
+    insert_ready_full_chunk(world, ChunkPos::from_block_pos(shared.block_position()));
     world
-        .try_add_entity(mooshroom.clone())
+        .try_add_entity(Arc::clone(&shared))
         .expect("mooshroom added");
 
+    let mooshroom = shared
+        .downcast_ref::<MushroomCowEntity>()
+        .expect("shared entity should be a mooshroom");
+
     assert_eq!(
-        Mob::mob_interact(
-            mooshroom.as_ref(),
-            player.as_ref(),
-            InteractionHand::MainHand
-        ),
+        Mob::mob_interact(mooshroom, player.as_ref(), InteractionHand::MainHand),
         InteractionResult::Success
     );
 
-    assert!(mooshroom.is_removed());
+    assert!(shared.is_removed());
 
     let entities = world.get_entities_in_aabb(&WorldAabb::new(9.0, 63.0, 9.0, 11.0, 66.0, 11.0));
     let has_cow = entities
