@@ -5,6 +5,7 @@ use glam::DVec3;
 use simdnbt::borrow::read_compound as read_borrowed_compound;
 use steel_registry::data_components::components::{SuspiciousStewEffect, SuspiciousStewEffects};
 use steel_registry::data_components::vanilla_components::SUSPICIOUS_STEW_EFFECTS;
+use steel_registry::entity_variant::MooshroomVariant;
 use steel_registry::{
     REGISTRY, RegistryExt, init_vanilla_registry, vanilla_entities, vanilla_items,
 };
@@ -15,6 +16,7 @@ use uuid::Uuid;
 
 use crate::entity::{Entity, LivingEntity, Mob, next_entity_id};
 use crate::test_support::{TestPlayerBuilder, fresh_test_world, insert_ready_full_chunk};
+use steel_utils::WorldAabb;
 
 use super::*;
 
@@ -26,7 +28,7 @@ fn mooshroom_initializes_vanilla_living_attributes_and_health() {
         MushroomCowEntity::new(&vanilla_entities::MOOSHROOM, 1, DVec3::ZERO, Weak::new());
 
     assert_eq!(mooshroom.get_health().to_bits(), 10.0_f32.to_bits());
-    assert_eq!(mooshroom.variant(), MushroomCowVariant::Red);
+    assert_eq!(mooshroom.variant(), MooshroomVariant::Red);
     let attributes = mooshroom.attributes().lock();
     assert_eq!(
         attributes
@@ -40,8 +42,9 @@ fn mooshroom_initializes_vanilla_living_attributes_and_health() {
 fn mooshroom_milks_bowl_into_mushroom_stew() {
     init_vanilla_registry();
 
-    let world = fresh_test_world("mooshroom_bowl_milking");
-    let player = TestPlayerBuilder::new(world, "Milker", 10).build();
+    let world_fixture = fresh_test_world("mooshroom_bowl_milking");
+    let world = &world_fixture.world;
+    let player = TestPlayerBuilder::new(Arc::clone(world), "Milker", 10).build();
     player
         .inventory
         .lock()
@@ -67,8 +70,9 @@ fn mooshroom_milks_bowl_into_mushroom_stew() {
 fn mooshroom_milks_bucket_into_milk_bucket() {
     init_vanilla_registry();
 
-    let world = fresh_test_world("mooshroom_bucket_milking");
-    let player = TestPlayerBuilder::new(world, "Milker", 11).build();
+    let world_fixture = fresh_test_world("mooshroom_bucket_milking");
+    let world = &world_fixture.world;
+    let player = TestPlayerBuilder::new(Arc::clone(world), "Milker", 11).build();
     player
         .inventory
         .lock()
@@ -94,19 +98,20 @@ fn mooshroom_milks_bucket_into_milk_bucket() {
 fn brown_mooshroom_eats_flower_and_gives_suspicious_stew() {
     init_vanilla_registry();
 
-    let world = fresh_test_world("mooshroom_suspicious_stew");
-    let player = TestPlayerBuilder::new(world, "FlowerFeeder", 12).build();
+    let world_fixture = fresh_test_world("mooshroom_suspicious_stew");
+    let world = &world_fixture.world;
+    let player = TestPlayerBuilder::new(Arc::clone(world), "FlowerFeeder", 12).build();
 
     let mooshroom =
         MushroomCowEntity::new(&vanilla_entities::MOOSHROOM, 1, DVec3::ZERO, Weak::new());
-    mooshroom.set_variant(MushroomCowVariant::Brown);
+    mooshroom.set_variant(MooshroomVariant::Brown);
 
     let dandelion = ItemStack::new(&vanilla_items::DANDELION);
     player.inventory.lock().set_selected_item(dandelion);
 
     assert_eq!(
         Mob::mob_interact(&mooshroom, player.as_ref(), InteractionHand::MainHand),
-        InteractionResult::SuccessServer
+        InteractionResult::Success
     );
     assert!(mooshroom.stew_effects().is_some());
 
@@ -149,26 +154,27 @@ fn mooshroom_thunder_hit_swaps_variant() {
 
     let mooshroom =
         MushroomCowEntity::new(&vanilla_entities::MOOSHROOM, 1, DVec3::ZERO, Weak::new());
-    assert_eq!(mooshroom.variant(), MushroomCowVariant::Red);
+    assert_eq!(mooshroom.variant(), MooshroomVariant::Red);
 
     let bolt1 = Uuid::new_v4();
     mooshroom.thunder_hit(bolt1);
-    assert_eq!(mooshroom.variant(), MushroomCowVariant::Brown);
+    assert_eq!(mooshroom.variant(), MooshroomVariant::Brown);
 
     mooshroom.thunder_hit(bolt1);
-    assert_eq!(mooshroom.variant(), MushroomCowVariant::Brown);
+    assert_eq!(mooshroom.variant(), MooshroomVariant::Brown);
 
     let bolt2 = Uuid::new_v4();
     mooshroom.thunder_hit(bolt2);
-    assert_eq!(mooshroom.variant(), MushroomCowVariant::Red);
+    assert_eq!(mooshroom.variant(), MooshroomVariant::Red);
 }
 
 #[test]
 fn mooshroom_shearing_converts_to_cow_and_drops_mushrooms() {
     init_vanilla_registry();
 
-    let world = fresh_test_world("mooshroom_shearing");
-    let player = TestPlayerBuilder::new(world.clone(), "Shearer", 13).build();
+    let world_fixture = fresh_test_world("mooshroom_shearing");
+    let world = &world_fixture.world;
+    let player = TestPlayerBuilder::new(Arc::clone(world), "Shearer", 13).build();
     player
         .inventory
         .lock()
@@ -178,9 +184,9 @@ fn mooshroom_shearing_converts_to_cow_and_drops_mushrooms() {
         &vanilla_entities::MOOSHROOM,
         next_entity_id(),
         DVec3::new(10.0, 64.0, 10.0),
-        Arc::downgrade(&world),
+        Arc::downgrade(world),
     ));
-    insert_ready_full_chunk(&world, ChunkPos::from_block_pos(mooshroom.block_position()));
+    insert_ready_full_chunk(world, ChunkPos::from_block_pos(mooshroom.block_position()));
     world
         .try_add_entity(mooshroom.clone())
         .expect("mooshroom added");
@@ -191,10 +197,16 @@ fn mooshroom_shearing_converts_to_cow_and_drops_mushrooms() {
             player.as_ref(),
             InteractionHand::MainHand
         ),
-        InteractionResult::SuccessServer
+        InteractionResult::Success
     );
 
     assert!(mooshroom.is_removed());
+
+    let entities = world.get_entities_in_aabb(&WorldAabb::new(9.0, 63.0, 9.0, 11.0, 66.0, 11.0));
+    let has_cow = entities
+        .iter()
+        .any(|entity| entity.entity_type() == &vanilla_entities::COW);
+    assert!(has_cow, "shearing mooshroom must spawn a cow");
 }
 
 #[test]
@@ -203,7 +215,7 @@ fn mooshroom_nbt_persistence_roundtrip() {
 
     let mooshroom =
         MushroomCowEntity::new(&vanilla_entities::MOOSHROOM, 1, DVec3::ZERO, Weak::new());
-    mooshroom.set_variant(MushroomCowVariant::Brown);
+    mooshroom.set_variant(MooshroomVariant::Brown);
 
     let night_vision = REGISTRY
         .mob_effects
@@ -224,6 +236,6 @@ fn mooshroom_nbt_persistence_roundtrip() {
     let loaded = MushroomCowEntity::new(&vanilla_entities::MOOSHROOM, 2, DVec3::ZERO, Weak::new());
     loaded.load_additional((&borrowed).into());
 
-    assert_eq!(loaded.variant(), MushroomCowVariant::Brown);
+    assert_eq!(loaded.variant(), MooshroomVariant::Brown);
     assert_eq!(loaded.stew_effects(), Some(effects));
 }

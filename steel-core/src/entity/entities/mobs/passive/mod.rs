@@ -8,6 +8,6 @@ mod sheep;
 
 pub use chicken::ChickenEntity;
 pub use cow::CowEntity;
-pub use mooshroom::{MushroomCowEntity, MushroomCowVariant};
+pub use mooshroom::MushroomCowEntity;
 pub use pig::PigEntity;
 pub use sheep::SheepEntity;

@@ -10,10 +10,13 @@ use steel_macros::entity_behavior;
 use steel_protocol::packets::game::SoundSource;
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
 use steel_registry::data_components::components::SuspiciousStewEffects;
-use steel_registry::data_components::vanilla_components::SUSPICIOUS_STEW_EFFECTS;
+use steel_registry::data_components::vanilla_components::{
+    MOOSHROOM_VARIANT, SUSPICIOUS_STEW_EFFECTS,
+};
 use steel_registry::entity_type::{
     EntityAttachmentPoint, EntityAttachments, EntityDimensions, EntityTypeRef,
 };
+use steel_registry::entity_variant::MooshroomVariant;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::particle_type::ParticleData;
 use steel_registry::sound_event::SoundEventRef;
@@ -42,7 +45,7 @@ use crate::entity::living_entity::shearing_loot_items_with_rng;
 use crate::entity::{
     AgeableMob, AgeableMobBase, Animal, AnimalBase, Entity, EntityBase, EntityBaseLoad, EntityPose,
     EntitySpawnReason, EntitySyncedData, LivingEntity, LivingEntityBase, Mob, MobBase,
-    PathfinderMob, RemovalReason, SpawnGroupData, next_entity_id,
+    PathfinderMob, RemovalReason, SharedEntity, SpawnGroupData, next_entity_id,
 };
 use crate::physics::MoveResult;
 use crate::player::Player;
@@ -69,64 +72,6 @@ const MOOSHROOM_BABY_DIMENSIONS: EntityDimensions = EntityDimensions::new_with_a
 const DEFAULT_STEP_HEIGHT: f32 = 0.6;
 /// Vanilla 1 in 1024 chance of mutation when breeding identical variants.
 const MUTATE_CHANCE: u32 = 1024;
-
-/// Vanilla Mooshroom variant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum MushroomCowVariant {
-    /// Red Mooshroom variant.
-    #[default]
-    Red,
-    /// Brown Mooshroom variant.
-    Brown,
-}
-
-impl MushroomCowVariant {
-    /// Returns the serialized variant identifier name.
-    #[must_use]
-    pub const fn serialized_name(self) -> &'static str {
-        match self {
-            Self::Red => "red",
-            Self::Brown => "brown",
-        }
-    }
-
-    /// Parses a variant from its serialized identifier name.
-    #[must_use]
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "red" => Some(Self::Red),
-            "brown" => Some(Self::Brown),
-            _ => None,
-        }
-    }
-
-    /// Returns the vanilla integer ID of this variant.
-    #[must_use]
-    pub const fn id(self) -> i32 {
-        match self {
-            Self::Red => 0,
-            Self::Brown => 1,
-        }
-    }
-
-    /// Resolves a variant from its vanilla integer ID.
-    #[must_use]
-    pub const fn from_id(id: i32) -> Self {
-        match id {
-            1 => Self::Brown,
-            _ => Self::Red,
-        }
-    }
-
-    /// Returns the opposite variant (`Red` <-> `Brown`).
-    #[must_use]
-    pub const fn opposite(self) -> Self {
-        match self {
-            Self::Red => Self::Brown,
-            Self::Brown => Self::Red,
-        }
-    }
-}
 
 /// Vanilla Mooshroom entity.
 #[entity_behavior(class = "MushroomCow")]
@@ -212,7 +157,7 @@ impl MushroomCowEntity {
     }
 
     /// Sets the active mooshroom variant.
-    pub fn set_variant(&self, variant: MushroomCowVariant) {
+    pub fn set_variant(&self, variant: MooshroomVariant) {
         self.entity_data
             .lock()
             .mushroom_cow_mut()
@@ -222,10 +167,10 @@ impl MushroomCowEntity {
 
     /// Returns the active mooshroom variant.
     #[must_use]
-    pub fn variant(&self) -> MushroomCowVariant {
+    pub fn variant(&self) -> MooshroomVariant {
         let binding = self.entity_data.lock();
         let id = *binding.mushroom_cow().variant_type.get();
-        MushroomCowVariant::from_id(id)
+        MooshroomVariant::by_id(id)
     }
 
     /// Sets the pending suspicious stew effects from feeding a flower.
@@ -247,7 +192,11 @@ impl MushroomCowEntity {
             return;
         }
         *last_uuid = Some(lightning_uuid);
-        self.set_variant(self.variant().opposite());
+        let next_variant = match self.variant() {
+            MooshroomVariant::Red => MooshroomVariant::Brown,
+            MooshroomVariant::Brown => MooshroomVariant::Red,
+        };
+        self.set_variant(next_variant);
         self.play_sound(&sound_events::ENTITY_MOOSHROOM_CONVERT, 2.0, 1.0);
     }
 
@@ -259,14 +208,7 @@ impl MushroomCowEntity {
 
     /// Shears the mooshroom, converting it into a normal cow and dropping vanilla loot.
     pub fn shear(&self, world: &Arc<World>, tool: &ItemStack) {
-        world.play_sound_at(
-            &sound_events::ENTITY_MOOSHROOM_SHEAR,
-            SoundSource::Players,
-            self.position(),
-            1.0,
-            1.0,
-            None,
-        );
+        self.play_sound(&sound_events::ENTITY_MOOSHROOM_SHEAR, 1.0, 1.0);
 
         // FIXME: use the vanilla world loot rng once the foundations are there
         let mut rng = rand::rng();
@@ -287,7 +229,6 @@ impl MushroomCowEntity {
             Arc::downgrade(world),
         ));
         cow.set_rotation(self.rotation());
-        cow.set_health(self.get_health());
         if let Some(custom_name) = self.custom_name() {
             cow.set_custom_name(Some(custom_name));
         }
@@ -297,11 +238,11 @@ impl MushroomCowEntity {
             cow.set_no_ai(true);
         }
 
-        self.set_removed(RemovalReason::Discarded);
         let _ = world.try_add_entity(cow);
+        self.set_removed(RemovalReason::Discarded);
         world.send_particles(
             ParticleData::simple(&vanilla_particle_types::EXPLOSION),
-            self.position() + DVec3::Y * 0.5,
+            self.position() + DVec3::Y * (self.bounding_box().height() * 0.5),
             1,
             DVec3::ZERO,
             0.0,
@@ -310,15 +251,7 @@ impl MushroomCowEntity {
 
     fn spawn_shearing_drop(&self, drop: &ItemStack) {
         for _ in 0..drop.count() {
-            let Some(item_entity) = self.spawn_at_location(drop.copy_with_count(1), 1.0) else {
-                continue;
-            };
-            let jitter = DVec3::new(
-                (rand::random::<f64>() - rand::random::<f64>()) * 0.1,
-                rand::random::<f64>() * 0.05,
-                (rand::random::<f64>() - rand::random::<f64>()) * 0.1,
-            );
-            item_entity.set_velocity(item_entity.velocity() + jitter);
+            let _ = self.spawn_at_location(drop.copy_with_count(1), self.bounding_box().height());
         }
     }
 
@@ -347,12 +280,23 @@ impl MushroomCowEntity {
             )
         };
 
-        self.play_sound(sound, 1.0, 1.0);
-
         let overflow = {
             let mut inventory = player.inventory.lock();
-            inventory.apply_filled_result(hand, stew_stack, player.has_infinite_materials(), false)
+            let overflow = inventory.apply_filled_result(
+                hand,
+                stew_stack,
+                player.has_infinite_materials(),
+                false,
+            );
+            if player.has_infinite_materials()
+                && inventory.get_item_in_hand(hand).is(&vanilla_items::BOWL)
+            {
+                // If player is in creative, vanilla still keeps the hand updated or drops overflow.
+            }
+            overflow
         };
+
+        self.play_sound(sound, 1.0, 1.0);
 
         if !overflow.is_empty() {
             let _ = player.drop_item(overflow, false, false);
@@ -367,7 +311,7 @@ impl MushroomCowEntity {
         hand: InteractionHand,
         item_stack: &ItemStack,
     ) -> InteractionResult {
-        if self.variant() != MushroomCowVariant::Brown || AgeableMob::is_baby(self) {
+        if self.variant() != MooshroomVariant::Brown || AgeableMob::is_baby(self) {
             return InteractionResult::Pass;
         }
 
@@ -378,12 +322,12 @@ impl MushroomCowEntity {
         };
 
         if self.stew_effects.lock().is_some() {
-            InteractionResult::SuccessServer
+            InteractionResult::Success
         } else {
             *self.stew_effects.lock() = Some(effects);
             self.play_sound(&sound_events::ENTITY_MOOSHROOM_EAT, 2.0, 1.0);
             Mob::use_player_item(self, player, hand);
-            InteractionResult::SuccessServer
+            InteractionResult::Success
         }
     }
 
@@ -411,7 +355,7 @@ impl MushroomCowEntity {
             .lock()
             .hurt_item_in_hand(hand, 1, player.has_infinite_materials());
 
-        InteractionResult::SuccessServer
+        InteractionResult::Success
     }
 
     fn try_milk(&self, player: &Player, hand: InteractionHand) -> bool {
@@ -475,6 +419,12 @@ impl Entity for MushroomCowEntity {
         self.entity_type
     }
 
+    fn apply_implicit_item_components(&self, item_stack: &ItemStack) {
+        if let Some(variant) = item_stack.get(MOOSHROOM_VARIANT) {
+            self.set_variant(*variant);
+        }
+    }
+
     fn base_tick(&self) {
         Mob::base_tick_mob(self);
     }
@@ -519,7 +469,7 @@ impl Entity for MushroomCowEntity {
         self.save_animal(nbt);
         nbt.insert("Type", self.variant().serialized_name());
         if let Some(stew_effects) = self.stew_effects.lock().as_ref() {
-            nbt.insert("stew_effects", stew_effects.clone().to_nbt_tag());
+            nbt.insert("stew_effects", stew_effects.to_nbt_tag());
         }
     }
 
@@ -528,15 +478,15 @@ impl Entity for MushroomCowEntity {
         self.load_ageable_mob(nbt);
         self.load_animal(nbt);
 
-        if let Some(variant_name) = nbt.string("Type")
-            && let Some(variant) = MushroomCowVariant::from_name(variant_name.to_str().as_ref())
-        {
-            self.set_variant(variant);
-        }
+        let variant = nbt
+            .string("Type")
+            .and_then(|name| MooshroomVariant::from_serialized_name(name.to_str().as_ref()))
+            .unwrap_or_default();
+        self.set_variant(variant);
 
-        if let Some(tag) = nbt.get("stew_effects") {
-            *self.stew_effects.lock() = SuspiciousStewEffects::from_nbt_tag(tag);
-        }
+        *self.stew_effects.lock() = nbt
+            .get("stew_effects")
+            .and_then(SuspiciousStewEffects::from_nbt_tag);
     }
 }
 
@@ -571,12 +521,12 @@ impl LivingEntity for MushroomCowEntity {
         Some(&sound_events::ENTITY_COW_DEATH)
     }
 
-    fn server_ai_step(&self) {
-        Mob::mob_server_ai_step(self);
+    fn server_ai_step(&self, entity: &SharedEntity) {
+        Mob::mob_server_ai_step(self, entity);
     }
 
-    fn ai_step(&self) -> Option<MoveResult> {
-        let result = Mob::mob_ai_step(self);
+    fn ai_step(&self, entity: &SharedEntity) -> Option<MoveResult> {
+        let result = Mob::mob_ai_step(self, entity);
 
         AgeableMob::tick_ageable_mob(self);
         Animal::tick_animal_love(self);
@@ -617,7 +567,10 @@ impl AgeableMob for MushroomCowEntity {
         let self_variant = self.variant();
         let baby_variant = if self_variant == mate_variant {
             if rand::random::<u32>().is_multiple_of(MUTATE_CHANCE) {
-                self_variant.opposite()
+                match self_variant {
+                    MooshroomVariant::Red => MooshroomVariant::Brown,
+                    MooshroomVariant::Brown => MooshroomVariant::Red,
+                }
             } else {
                 self_variant
             }
@@ -675,8 +628,8 @@ impl Mob for MushroomCowEntity {
         &self.mob_base
     }
 
-    fn tick_goal_selectors(&self) {
-        PathfinderMob::tick_pathfinder_goal_selectors(self);
+    fn tick_goal_selectors(&self, entity: &SharedEntity) {
+        PathfinderMob::tick_pathfinder_goal_selectors(self, entity);
     }
 
     fn tick_path_navigation(&self) {
@@ -697,7 +650,7 @@ impl Mob for MushroomCowEntity {
         spawn_reason: EntitySpawnReason,
         group_data: Option<SpawnGroupData>,
     ) -> Option<SpawnGroupData> {
-        self.set_variant(MushroomCowVariant::Red);
+        self.set_variant(MooshroomVariant::Red);
         self.finalize_spawn_ageable_mob(world, spawn_reason, group_data)
     }
 

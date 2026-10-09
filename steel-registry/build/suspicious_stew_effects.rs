@@ -50,7 +50,7 @@ pub(crate) fn build() -> TokenStream {
         use crate::items::ItemRef;
         use crate::{vanilla_items, vanilla_mob_effects};
 
-        /// Returns the vanilla suspicious-stew effects supplied by a flower item.
+        /// Returns the suspicious stew effects supplied by a flower item.
         #[must_use]
         pub fn from_item(item: ItemRef) -> Option<SuspiciousStewEffects> {
             #cases
